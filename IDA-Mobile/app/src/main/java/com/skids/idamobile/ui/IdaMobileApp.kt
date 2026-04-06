@@ -1,4 +1,4 @@
-﻿package com.skids.idamobile.ui
+package com.skids.idamobile.ui
 
 import android.content.Context
 import android.net.Uri
@@ -44,6 +44,8 @@ fun IdaMobileApp(
     onDebuggerQueryChanged: (String) -> Unit,
     onAssemblyQueryChanged: (String) -> Unit,
     onAssemblyMethodSelected: (String) -> Unit,
+    onStringsQueryChanged: (String) -> Unit,
+    onStringSelected: (String) -> Unit,
     onWebsiteUrlChanged: (String) -> Unit,
     onInspectWebsite: () -> Unit
 ) {
@@ -119,6 +121,11 @@ fun IdaMobileApp(
                         onAssemblyQueryChanged = onAssemblyQueryChanged,
                         onAssemblyMethodSelected = onAssemblyMethodSelected
                     )
+                    ToolMode.STRINGS_XREFS -> StringsPanel(
+                        state = uiState.apkWorkspace,
+                        onStringsQueryChanged = onStringsQueryChanged,
+                        onStringSelected = onStringSelected
+                    )
                     ToolMode.WEBSITE -> WebsitePanel(
                         state = uiState.websiteState,
                         onWebsiteUrlChanged = onWebsiteUrlChanged,
@@ -170,14 +177,20 @@ private fun ToolSelector(
                     .widthIn(min = 130.dp)
             )
             ToolButton(
-                label = "Website Tool",
-                isSelected = selectedTool == ToolMode.WEBSITE,
-                onClick = { onSelectTool(ToolMode.WEBSITE) },
+                label = "Strings + Xrefs",
+                isSelected = selectedTool == ToolMode.STRINGS_XREFS,
+                onClick = { onSelectTool(ToolMode.STRINGS_XREFS) },
                 modifier = Modifier
                     .weight(1f)
                     .widthIn(min = 130.dp)
             )
         }
+        ToolButton(
+            label = "Website Tool",
+            isSelected = selectedTool == ToolMode.WEBSITE,
+            onClick = { onSelectTool(ToolMode.WEBSITE) },
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -271,7 +284,7 @@ private fun DebugListSection(
         return
     }
 
-    // Keep rendering bounded on mobile while still exposing meaningful output
+    // Keep rendering bounded on mobile while still exposing meaningful output.
     filtered.take(120).forEach { value ->
         Text("- $value", style = MaterialTheme.typography.bodySmall)
     }
@@ -360,6 +373,102 @@ private fun AssemblyPanel(
 }
 
 @Composable
+private fun StringsPanel(
+    state: ApkWorkspaceUiState,
+    onStringsQueryChanged: (String) -> Unit,
+    onStringSelected: (String) -> Unit
+) {
+    val report = state.stringsReport
+    if (report == null) {
+        Text("No DEX strings report loaded yet.")
+        return
+    }
+
+    OutlinedTextField(
+        value = state.stringsQuery,
+        onValueChange = onStringsQueryChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Find string/xref") },
+        placeholder = { Text("token, URL, method name, class...") },
+        singleLine = true
+    )
+
+    val query = state.stringsQuery.trim()
+    val filtered = if (query.isBlank()) {
+        report.records
+    } else {
+        report.records.filter { record ->
+            record.entry.value.contains(query, ignoreCase = true) ||
+                record.xrefs.any { xref ->
+                    xref.methodId.contains(query, ignoreCase = true) ||
+                        xref.className.contains(query, ignoreCase = true) ||
+                        xref.methodName.contains(query, ignoreCase = true) ||
+                        xref.opcode.contains(query, ignoreCase = true)
+                }
+        }
+    }
+
+    Text("DEX Entry: ${report.dexEntryName}")
+    Text("Tracked strings: ${report.totalStrings} ${if (report.wasTruncated) "(truncated for mobile safety)" else ""}")
+    Text("Matches: ${filtered.size}")
+
+    if (filtered.isEmpty()) {
+        Text("No strings matched your query.")
+        return
+    }
+
+    val selectedRecord = filtered.firstOrNull { it.entry.value == state.selectedStringValue } ?: filtered.first()
+
+    Text("Strings", style = MaterialTheme.typography.titleMedium)
+    filtered.take(120).forEach { record ->
+        Button(
+            onClick = { onStringSelected(record.entry.value) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("[${record.entry.xrefCount}] ${previewText(record.entry.value)}")
+        }
+    }
+    if (filtered.size > 120) {
+        Text("... ${filtered.size - 120} more strings")
+    }
+
+    Text("Selected String", style = MaterialTheme.typography.titleMedium)
+    SelectionContainer {
+        Text(selectedRecord.entry.value, fontFamily = FontFamily.Monospace)
+    }
+    Text("UTF-8 length: ${selectedRecord.entry.utf8Length}")
+    Text("Xrefs: ${selectedRecord.entry.xrefCount}")
+
+    val selectedXrefs = if (query.isBlank()) {
+        selectedRecord.xrefs
+    } else {
+        selectedRecord.xrefs.filter { xref ->
+            xref.methodId.contains(query, ignoreCase = true) ||
+                xref.className.contains(query, ignoreCase = true) ||
+                xref.methodName.contains(query, ignoreCase = true) ||
+                xref.opcode.contains(query, ignoreCase = true)
+        }
+    }
+
+    Text("Cross References", style = MaterialTheme.typography.titleMedium)
+    if (selectedXrefs.isEmpty()) {
+        Text("(no xrefs matched the current query)")
+        return
+    }
+
+    selectedXrefs.take(250).forEach { xref ->
+        Text(
+            text = "${xref.className} -> ${xref.methodName}${xref.descriptor} @ 0x${xref.instructionAddress.toString(16)} (${xref.opcode})",
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+    if (selectedXrefs.size > 250) {
+        Text("... ${selectedXrefs.size - 250} more xrefs")
+    }
+}
+
+@Composable
 private fun WebsitePanel(
     state: WebsiteUiState,
     onWebsiteUrlChanged: (String) -> Unit,
@@ -394,3 +503,16 @@ private fun WebsitePanel(
         Text("Website error: $error", color = MaterialTheme.colorScheme.error)
     }
 }
+
+private fun previewText(value: String): String {
+    val normalized = value
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    return if (normalized.length <= 80) {
+        normalized
+    } else {
+        "${normalized.take(77)}..."
+    }
+}
+

@@ -10,4 +10,5 @@ object FeatureRegistry {
     val apkDebuggerEnabled: Boolean = true
     val assemblyViewerEnabled: Boolean = true
     val syntaxColorEngineEnabled: Boolean = true
+    val stringsXrefsEnabled: Boolean = true
 }

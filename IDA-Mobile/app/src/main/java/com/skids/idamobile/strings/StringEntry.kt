@@ -1,7 +1,8 @@
 package com.skids.idamobile.strings
 
 data class StringEntry(
-    val address: Long,
-    val value: String
+    val value: String,
+    val utf8Length: Int,
+    val xrefCount: Int
 )
 

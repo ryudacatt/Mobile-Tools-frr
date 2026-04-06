@@ -1,4 +1,4 @@
-﻿package com.skids.idamobile.viewmodels
+package com.skids.idamobile.viewmodels
 
 import android.content.Context
 import android.net.Uri
@@ -8,15 +8,17 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.skids.idamobile.disassembly.ApkAssemblyReport
+import com.skids.idamobile.disassembly.ApkDisassemblyRepository
 import com.skids.idamobile.features.websites.WebsiteInspectorRepository
 import com.skids.idamobile.features.websites.WebsiteReport
 import com.skids.idamobile.fileloader.ApkDebugReport
-import com.skids.idamobile.fileloader.ApkInspectionResult
 import com.skids.idamobile.fileloader.ApkDebuggerRepository
+import com.skids.idamobile.fileloader.ApkInspectionResult
 import com.skids.idamobile.fileloader.ApkInspectorRepository
 import com.skids.idamobile.fileloader.FileLoaderRepository
-import com.skids.idamobile.disassembly.ApkDisassemblyRepository
 import com.skids.idamobile.nativebridge.NativeBridge
+import com.skids.idamobile.strings.ApkStringsRepository
+import com.skids.idamobile.strings.StringsReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +34,7 @@ enum class ToolMode {
     APK_OVERVIEW,
     APK_DEBUGGER,
     ASSEMBLY,
+    STRINGS_XREFS,
     WEBSITE
 }
 
@@ -42,9 +45,12 @@ data class ApkWorkspaceUiState(
     val overview: ApkInspectionResult? = null,
     val debugReport: ApkDebugReport? = null,
     val assemblyReport: ApkAssemblyReport? = null,
+    val stringsReport: StringsReport? = null,
     val selectedAssemblyMethodId: String? = null,
+    val selectedStringValue: String? = null,
     val assemblyQuery: String = "",
     val debuggerQuery: String = "",
+    val stringsQuery: String = "",
     val error: String? = null
 )
 
@@ -63,6 +69,7 @@ class MainViewModel : ViewModel() {
     private val apkInspectorRepository = ApkInspectorRepository()
     private val apkDebuggerRepository = ApkDebuggerRepository()
     private val apkDisassemblyRepository = ApkDisassemblyRepository()
+    private val apkStringsRepository = ApkStringsRepository()
     private val websiteRepository = WebsiteInspectorRepository()
 
     var uiState by mutableStateOf(MainUiState())
@@ -109,10 +116,11 @@ class MainViewModel : ViewModel() {
             }
 
             val materializedApk = materializedResult.getOrThrow()
-            // Execute all APK analyzers on the same cached file to keep results consistent
+            // Execute all APK analyzers on the same cached file to keep results consistent.
             val nativeResult = apkInspectorRepository.inspect(materializedApk.apkFile, materializedApk.displayName)
             val debugResult = apkDebuggerRepository.inspect(context, materializedApk.apkFile, materializedApk.displayName)
             val assemblyResult = apkDisassemblyRepository.disassemble(materializedApk.apkFile)
+            val stringsResult = apkStringsRepository.analyze(materializedApk.apkFile)
 
             val failures = mutableListOf<String>()
             if (nativeResult.isFailure) {
@@ -124,9 +132,13 @@ class MainViewModel : ViewModel() {
             if (assemblyResult.isFailure) {
                 failures += "Assembly view: ${assemblyResult.exceptionOrNull()?.message}"
             }
+            if (stringsResult.isFailure) {
+                failures += "Strings + xrefs: ${stringsResult.exceptionOrNull()?.message}"
+            }
 
             withContext(Dispatchers.Main) {
                 val assemblyReport = assemblyResult.getOrNull()
+                val stringsReport = stringsResult.getOrNull()
                 uiState = uiState.copy(
                     apkWorkspace = ApkWorkspaceUiState(
                         isLoading = false,
@@ -135,9 +147,12 @@ class MainViewModel : ViewModel() {
                         overview = nativeResult.getOrNull(),
                         debugReport = debugResult.getOrNull(),
                         assemblyReport = assemblyReport,
+                        stringsReport = stringsReport,
                         selectedAssemblyMethodId = assemblyReport?.methods?.firstOrNull()?.id,
+                        selectedStringValue = stringsReport?.records?.firstOrNull()?.entry?.value,
                         assemblyQuery = "",
                         debuggerQuery = "",
+                        stringsQuery = "",
                         error = failures.takeIf { it.isNotEmpty() }?.joinToString(separator = " | ")
                     )
                 )
@@ -165,6 +180,22 @@ class MainViewModel : ViewModel() {
         uiState = uiState.copy(
             apkWorkspace = uiState.apkWorkspace.copy(
                 selectedAssemblyMethodId = methodId
+            )
+        )
+    }
+
+    fun updateStringsQuery(input: String) {
+        uiState = uiState.copy(
+            apkWorkspace = uiState.apkWorkspace.copy(
+                stringsQuery = input
+            )
+        )
+    }
+
+    fun selectStringValue(stringValue: String) {
+        uiState = uiState.copy(
+            apkWorkspace = uiState.apkWorkspace.copy(
+                selectedStringValue = stringValue
             )
         )
     }
@@ -204,3 +235,4 @@ class MainViewModel : ViewModel() {
         }
     }
 }
+

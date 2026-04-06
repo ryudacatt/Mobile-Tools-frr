@@ -21,6 +21,8 @@ class MainActivity : ComponentActivity() {
                 onDebuggerQueryChanged = viewModel::updateDebuggerQuery,
                 onAssemblyQueryChanged = viewModel::updateAssemblyQuery,
                 onAssemblyMethodSelected = viewModel::selectAssemblyMethod,
+                onStringsQueryChanged = viewModel::updateStringsQuery,
+                onStringSelected = viewModel::selectStringValue,
                 onWebsiteUrlChanged = viewModel::updateWebsiteUrl,
                 onInspectWebsite = viewModel::inspectWebsite
             )
