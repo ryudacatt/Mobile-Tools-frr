@@ -1,5 +1,3 @@
-# IDA-Mobile Workbench
-
 <p align="center">
   <img src="docs/assets/project-icon.png" alt="IDA-Mobile icon" width="150" />
 </p>
