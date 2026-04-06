@@ -1,9 +1,8 @@
 package com.skids.idamobile.fileloader
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
+import android.os.ParcelFileDescriptor
 import com.skids.idamobile.nativebridge.NativeBridge
+import java.io.File
 import org.json.JSONObject
 
 data class ApkInspectionResult(
@@ -11,35 +10,17 @@ data class ApkInspectionResult(
     val report: ApkNativeReport
 )
 
+/**
+ * Bridges cached APK files into the native mmap-based inspector through JNI.
+ */
 class ApkInspectorRepository {
-    fun inspect(context: Context, uri: Uri): Result<ApkInspectionResult> = runCatching {
-        val displayName = resolveDisplayName(context, uri)
-        val rawReport = context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-            NativeBridge.inspectApk(pfd.fd, pfd.statSize)
-        } ?: error("Could not open selected APK.")
+    fun inspect(apkFile: File, displayName: String): Result<ApkInspectionResult> = runCatching {
+        val rawReport = ParcelFileDescriptor.open(apkFile, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
+            NativeBridge.inspectApk(pfd.fd, apkFile.length())
+        }
 
         val report = parseNativeReport(rawReport)
         ApkInspectionResult(displayName = displayName, report = report)
-    }
-
-    private fun resolveDisplayName(context: Context, uri: Uri): String {
-        val fallback = uri.lastPathSegment ?: "selected.apk"
-        context.contentResolver.query(
-            uri,
-            arrayOf(OpenableColumns.DISPLAY_NAME),
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (column >= 0 && cursor.moveToFirst()) {
-                val value = cursor.getString(column)
-                if (!value.isNullOrBlank()) {
-                    return value
-                }
-            }
-        }
-        return fallback
     }
 
     private fun parseNativeReport(rawJson: String): ApkNativeReport {
@@ -56,4 +37,3 @@ class ApkInspectorRepository {
         )
     }
 }
-

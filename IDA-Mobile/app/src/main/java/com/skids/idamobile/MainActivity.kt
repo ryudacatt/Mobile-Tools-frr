@@ -17,7 +17,10 @@ class MainActivity : ComponentActivity() {
                 uiState = viewModel.uiState,
                 onRefreshNativeBridge = viewModel::refreshNativeBridge,
                 onSelectTool = viewModel::selectTool,
-                onPickApk = viewModel::inspectApk,
+                onPickApk = viewModel::openApkWorkspace,
+                onDebuggerQueryChanged = viewModel::updateDebuggerQuery,
+                onAssemblyQueryChanged = viewModel::updateAssemblyQuery,
+                onAssemblyMethodSelected = viewModel::selectAssemblyMethod,
                 onWebsiteUrlChanged = viewModel::updateWebsiteUrl,
                 onInspectWebsite = viewModel::inspectWebsite
             )
