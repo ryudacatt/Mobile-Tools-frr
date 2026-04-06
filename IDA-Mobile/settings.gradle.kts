@@ -3,6 +3,7 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven("https://chaquo.com/maven")
     }
 }
 
@@ -16,4 +17,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "IDA-Mobile"
 include(":app")
-

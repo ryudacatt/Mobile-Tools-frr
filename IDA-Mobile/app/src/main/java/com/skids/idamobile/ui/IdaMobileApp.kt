@@ -27,9 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.skids.idamobile.disassembly.AssemblySyntaxHighlighter
+import com.skids.idamobile.decompiler.Radare2DecompileReport
 import com.skids.idamobile.viewmodels.ApkWorkspaceUiState
 import com.skids.idamobile.viewmodels.MainUiState
 import com.skids.idamobile.viewmodels.ToolMode
+import com.skids.idamobile.viewmodels.TermuxUiState
 import com.skids.idamobile.viewmodels.WebsiteUiState
 
 /**
@@ -44,10 +46,22 @@ fun IdaMobileApp(
     onDebuggerQueryChanged: (String) -> Unit,
     onAssemblyQueryChanged: (String) -> Unit,
     onAssemblyMethodSelected: (String) -> Unit,
+    onHexOffsetChanged: (String) -> Unit,
+    onHexLoadWindow: () -> Unit,
+    onHexPatchOffsetChanged: (String) -> Unit,
+    onHexPatchBytesChanged: (String) -> Unit,
+    onApplyHexPatch: (Context) -> Unit,
+    onExportSelectedMethod: (Context) -> Unit,
     onStringsQueryChanged: (String) -> Unit,
     onStringSelected: (String) -> Unit,
+    onDecompilerQueryChanged: (String) -> Unit,
+    onRunDecompiler: (Context) -> Unit,
     onWebsiteUrlChanged: (String) -> Unit,
-    onInspectWebsite: () -> Unit
+    onInspectWebsite: () -> Unit,
+    onRefreshTermuxStatus: (Context) -> Unit,
+    onTermuxCommandChanged: (String) -> Unit,
+    onLaunchTermux: (Context) -> Unit,
+    onRunTermuxCommand: (Context) -> Unit
 ) {
     val context = LocalContext.current
     val apkPicker = rememberLauncherForActivityResult(
@@ -86,7 +100,7 @@ fun IdaMobileApp(
                     onSelectTool = onSelectTool
                 )
 
-                if (uiState.selectedTool != ToolMode.WEBSITE) {
+                if (uiState.selectedTool != ToolMode.WEBSITE && uiState.selectedTool != ToolMode.TERMUX) {
                     Button(
                         onClick = {
                             apkPicker.launch(
@@ -121,15 +135,39 @@ fun IdaMobileApp(
                         onAssemblyQueryChanged = onAssemblyQueryChanged,
                         onAssemblyMethodSelected = onAssemblyMethodSelected
                     )
+                    ToolMode.HEX_EDITOR -> HexPanel(
+                        context = context,
+                        state = uiState.apkWorkspace,
+                        onHexOffsetChanged = onHexOffsetChanged,
+                        onHexLoadWindow = onHexLoadWindow,
+                        onHexPatchOffsetChanged = onHexPatchOffsetChanged,
+                        onHexPatchBytesChanged = onHexPatchBytesChanged,
+                        onApplyHexPatch = onApplyHexPatch,
+                        onExportSelectedMethod = onExportSelectedMethod
+                    )
                     ToolMode.STRINGS_XREFS -> StringsPanel(
                         state = uiState.apkWorkspace,
                         onStringsQueryChanged = onStringsQueryChanged,
                         onStringSelected = onStringSelected
                     )
+                    ToolMode.DECOMPILER -> DecompilerPanel(
+                        context = context,
+                        state = uiState.apkWorkspace,
+                        onDecompilerQueryChanged = onDecompilerQueryChanged,
+                        onRunDecompiler = onRunDecompiler
+                    )
                     ToolMode.WEBSITE -> WebsitePanel(
                         state = uiState.websiteState,
                         onWebsiteUrlChanged = onWebsiteUrlChanged,
                         onInspectWebsite = onInspectWebsite
+                    )
+                    ToolMode.TERMUX -> TermuxPanel(
+                        context = context,
+                        state = uiState.termuxState,
+                        onRefreshTermuxStatus = onRefreshTermuxStatus,
+                        onTermuxCommandChanged = onTermuxCommandChanged,
+                        onLaunchTermux = onLaunchTermux,
+                        onRunTermuxCommand = onRunTermuxCommand
                     )
                 }
             }
@@ -163,6 +201,14 @@ private fun ToolSelector(
                     .weight(1f)
                     .widthIn(min = 130.dp)
             )
+            ToolButton(
+                label = "Hex Editor",
+                isSelected = selectedTool == ToolMode.HEX_EDITOR,
+                onClick = { onSelectTool(ToolMode.HEX_EDITOR) },
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 130.dp)
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -184,13 +230,36 @@ private fun ToolSelector(
                     .weight(1f)
                     .widthIn(min = 130.dp)
             )
+            ToolButton(
+                label = "Decompiler",
+                isSelected = selectedTool == ToolMode.DECOMPILER,
+                onClick = { onSelectTool(ToolMode.DECOMPILER) },
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 130.dp)
+            )
         }
-        ToolButton(
-            label = "Website Tool",
-            isSelected = selectedTool == ToolMode.WEBSITE,
-            onClick = { onSelectTool(ToolMode.WEBSITE) },
-            modifier = Modifier.fillMaxWidth()
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ToolButton(
+                label = "Website Tool",
+                isSelected = selectedTool == ToolMode.WEBSITE,
+                onClick = { onSelectTool(ToolMode.WEBSITE) },
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 130.dp)
+            )
+            ToolButton(
+                label = "Termux Bridge",
+                isSelected = selectedTool == ToolMode.TERMUX,
+                onClick = { onSelectTool(ToolMode.TERMUX) },
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 130.dp)
+            )
+        }
     }
 }
 
@@ -373,6 +442,104 @@ private fun AssemblyPanel(
 }
 
 @Composable
+private fun HexPanel(
+    context: Context,
+    state: ApkWorkspaceUiState,
+    onHexOffsetChanged: (String) -> Unit,
+    onHexLoadWindow: () -> Unit,
+    onHexPatchOffsetChanged: (String) -> Unit,
+    onHexPatchBytesChanged: (String) -> Unit,
+    onApplyHexPatch: (Context) -> Unit,
+    onExportSelectedMethod: (Context) -> Unit
+) {
+    if (state.selectedFilePath == null) {
+        Text("No APK loaded. Select an APK to open the hex workspace.")
+        return
+    }
+
+    val hexState = state.hexState
+
+    Text("Hex Workspace", style = MaterialTheme.typography.titleMedium)
+    OutlinedTextField(
+        value = hexState.offsetInput,
+        onValueChange = onHexOffsetChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Start offset") },
+        placeholder = { Text("0x0") },
+        singleLine = true
+    )
+    Button(
+        onClick = onHexLoadWindow,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Load Hex Window")
+    }
+
+    SelectionContainer {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (hexState.rows.isEmpty()) {
+                Text("No rows loaded.")
+            } else {
+                hexState.rows.forEach { row ->
+                    Text(
+                        text = "0x${row.offset.toString(16).padStart(8, '0')}  ${row.hexBytes.padEnd(47, ' ')}  ${row.ascii}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+
+    Text("Patch Export", style = MaterialTheme.typography.titleMedium)
+    OutlinedTextField(
+        value = hexState.patchOffsetInput,
+        onValueChange = onHexPatchOffsetChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Patch offset") },
+        placeholder = { Text("0x10A0") },
+        singleLine = true
+    )
+    OutlinedTextField(
+        value = hexState.patchBytesInput,
+        onValueChange = onHexPatchBytesChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Patch bytes (hex)") },
+        placeholder = { Text("90 90 90 90") },
+        singleLine = true
+    )
+    Button(
+        onClick = { onApplyHexPatch(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Export Patched APK")
+    }
+
+    Button(
+        onClick = { onExportSelectedMethod(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Export Selected Method")
+    }
+
+    hexState.status?.let { status ->
+        Text(status, style = MaterialTheme.typography.bodySmall)
+    }
+    hexState.lastPatchedFilePath?.let { path ->
+        Text("Last patched APK: $path", style = MaterialTheme.typography.bodySmall)
+    }
+    hexState.lastExportedMethodPath?.let { path ->
+        Text("Last exported method: $path", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
 private fun StringsPanel(
     state: ApkWorkspaceUiState,
     onStringsQueryChanged: (String) -> Unit,
@@ -411,6 +578,28 @@ private fun StringsPanel(
     Text("DEX Entry: ${report.dexEntryName}")
     Text("Tracked strings: ${report.totalStrings} ${if (report.wasTruncated) "(truncated for mobile safety)" else ""}")
     Text("Matches: ${filtered.size}")
+
+    val filteredInsights = if (query.isBlank()) {
+        state.pythonInsights
+    } else {
+        state.pythonInsights.filter { insight ->
+            insight.value.contains(query, ignoreCase = true) ||
+                insight.reasons.any { it.contains(query, ignoreCase = true) }
+        }
+    }
+    Text("Python heuristic hits: ${filteredInsights.size}")
+    if (filteredInsights.isNotEmpty()) {
+        Text("Top Python Insights", style = MaterialTheme.typography.titleMedium)
+        filteredInsights.take(20).forEach { insight ->
+            Text(
+                text = "[${"%.2f".format(insight.score)}] ${previewText(insight.value)} :: ${insight.reasons.joinToString()}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        if (filteredInsights.size > 20) {
+            Text("... ${filteredInsights.size - 20} more Python hits")
+        }
+    }
 
     if (filtered.isEmpty()) {
         Text("No strings matched your query.")
@@ -469,6 +658,74 @@ private fun StringsPanel(
 }
 
 @Composable
+private fun DecompilerPanel(
+    context: Context,
+    state: ApkWorkspaceUiState,
+    onDecompilerQueryChanged: (String) -> Unit,
+    onRunDecompiler: (Context) -> Unit
+) {
+    if (state.selectedFilePath == null) {
+        Text("No APK loaded. Select an APK to run decompilation.")
+        return
+    }
+
+    val decompilerState = state.decompilerState
+    OutlinedTextField(
+        value = decompilerState.functionQuery,
+        onValueChange = onDecompilerQueryChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Function filter") },
+        placeholder = { Text("main, onCreate, login...") },
+        singleLine = true
+    )
+    Button(
+        onClick = { onRunDecompiler(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(if (decompilerState.isLoading) "Running Radare2..." else "Run Radare2 Decompiler")
+    }
+
+    decompilerState.error?.let { error ->
+        Text("Decompiler error: $error", color = MaterialTheme.colorScheme.error)
+    }
+    decompilerState.report?.let { report ->
+        DecompilerReport(report)
+    }
+}
+
+@Composable
+private fun DecompilerReport(report: Radare2DecompileReport) {
+    Text("Radare2 Report", style = MaterialTheme.typography.titleMedium)
+    Text("DEX Path: ${report.dexPath}")
+    Text("ABI: ${report.abi}")
+    Text("Functions: ${report.functionCount} ${if (report.wasTruncated) "(truncated view)" else ""}")
+    report.selectedFunction?.let { selected ->
+        Text("Selected: ${selected.name} @ 0x${selected.offset.toString(16)}")
+    }
+
+    Text("Function List", style = MaterialTheme.typography.titleSmall)
+    report.functions.take(100).forEach { function ->
+        Text(
+            text = "0x${function.offset.toString(16)} ${function.name} (size=${function.size})",
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+    if (report.functions.size > 100) {
+        Text("... ${report.functions.size - 100} more functions")
+    }
+
+    Text("Pseudo Code (pdc)", style = MaterialTheme.typography.titleSmall)
+    SelectionContainer {
+        Text(
+            text = report.pseudoCode,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
 private fun WebsitePanel(
     state: WebsiteUiState,
     onWebsiteUrlChanged: (String) -> Unit,
@@ -504,6 +761,55 @@ private fun WebsitePanel(
     }
 }
 
+@Composable
+private fun TermuxPanel(
+    context: Context,
+    state: TermuxUiState,
+    onRefreshTermuxStatus: (Context) -> Unit,
+    onTermuxCommandChanged: (String) -> Unit,
+    onLaunchTermux: (Context) -> Unit,
+    onRunTermuxCommand: (Context) -> Unit
+) {
+    Text("Termux Bridge", style = MaterialTheme.typography.titleMedium)
+    Button(
+        onClick = { onRefreshTermuxStatus(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Refresh Termux Status")
+    }
+
+    state.status?.let { status ->
+        Text("Installed: ${status.installed}")
+        Text("Package: ${status.packageName}")
+        Text(status.detail, style = MaterialTheme.typography.bodySmall)
+    }
+
+    OutlinedTextField(
+        value = state.commandInput,
+        onValueChange = onTermuxCommandChanged,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Command") },
+        placeholder = { Text("r2 -v") },
+        singleLine = true
+    )
+    Button(
+        onClick = { onLaunchTermux(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Launch Termux")
+    }
+    Button(
+        onClick = { onRunTermuxCommand(context) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Run Command In Termux")
+    }
+
+    state.message?.let { message ->
+        Text(message, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
 private fun previewText(value: String): String {
     val normalized = value
         .replace("\n", "\\n")
@@ -515,4 +821,3 @@ private fun previewText(value: String): String {
         "${normalized.take(77)}..."
     }
 }
-

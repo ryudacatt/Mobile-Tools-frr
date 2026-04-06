@@ -1,6 +1,8 @@
 #include <jni.h>
 #include <android/log.h>
 #include <cstdint>
+#include <string>
+#include <capstone/capstone.h>
 
 #include "core/core_version.h"
 #include "loader/apk_inspector.h"
@@ -14,6 +16,16 @@ Java_com_skids_idamobile_nativebridge_NativeBridge_getCoreVersion(JNIEnv* env, j
     const auto version = ida_mobile::core::GetCoreVersion();
     __android_log_print(ANDROID_LOG_INFO, kLogTag, "Native bridge requested core version: %s", version.data());
     return env->NewStringUTF(version.data());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_skids_idamobile_nativebridge_NativeBridge_getCapstoneVersion(JNIEnv* env, jobject /* this */) {
+    int major = 0;
+    int minor = 0;
+    cs_version(&major, &minor);
+    const std::string version = "Capstone " + std::to_string(major) + "." + std::to_string(minor);
+    __android_log_print(ANDROID_LOG_INFO, kLogTag, "Capstone version: %s", version.c_str());
+    return env->NewStringUTF(version.c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL

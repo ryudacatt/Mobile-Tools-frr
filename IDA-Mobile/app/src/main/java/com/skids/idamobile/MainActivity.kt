@@ -21,10 +21,22 @@ class MainActivity : ComponentActivity() {
                 onDebuggerQueryChanged = viewModel::updateDebuggerQuery,
                 onAssemblyQueryChanged = viewModel::updateAssemblyQuery,
                 onAssemblyMethodSelected = viewModel::selectAssemblyMethod,
+                onHexOffsetChanged = viewModel::updateHexOffsetInput,
+                onHexLoadWindow = viewModel::loadHexWindow,
+                onHexPatchOffsetChanged = viewModel::updateHexPatchOffsetInput,
+                onHexPatchBytesChanged = viewModel::updateHexPatchBytesInput,
+                onApplyHexPatch = viewModel::applyHexPatch,
+                onExportSelectedMethod = viewModel::exportSelectedAssemblyMethod,
                 onStringsQueryChanged = viewModel::updateStringsQuery,
                 onStringSelected = viewModel::selectStringValue,
+                onDecompilerQueryChanged = viewModel::updateDecompilerQuery,
+                onRunDecompiler = viewModel::runDecompiler,
                 onWebsiteUrlChanged = viewModel::updateWebsiteUrl,
-                onInspectWebsite = viewModel::inspectWebsite
+                onInspectWebsite = viewModel::inspectWebsite,
+                onRefreshTermuxStatus = viewModel::refreshTermuxStatus,
+                onTermuxCommandChanged = viewModel::updateTermuxCommand,
+                onLaunchTermux = viewModel::launchTermux,
+                onRunTermuxCommand = viewModel::runTermuxCommand
             )
         }
     }

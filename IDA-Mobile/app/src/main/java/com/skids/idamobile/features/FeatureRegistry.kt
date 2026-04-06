@@ -1,7 +1,7 @@
 package com.skids.idamobile.features
 
 /**
- * Central place to register feature flags and capabilities as phases expand.
+ * Central place to register feature flags and capabilities as phases expand
  */
 object FeatureRegistry {
     val foundationReady: Boolean = true
@@ -10,5 +10,9 @@ object FeatureRegistry {
     val apkDebuggerEnabled: Boolean = true
     val assemblyViewerEnabled: Boolean = true
     val syntaxColorEngineEnabled: Boolean = true
+    val hexEditorEnabled: Boolean = true
     val stringsXrefsEnabled: Boolean = true
+    val pythonScriptingEnabled: Boolean = true
+    val radare2DecompilerEnabled: Boolean = true
+    val termuxBridgeEnabled: Boolean = true
 }

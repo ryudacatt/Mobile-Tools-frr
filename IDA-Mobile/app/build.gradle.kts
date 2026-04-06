@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.chaquo.python")
 }
 
 android {
@@ -71,6 +72,18 @@ android {
     }
 }
 
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+    }
+    sourceSets {
+        getByName("main") {
+            srcDir("src/main/python")
+            srcDir("../../scripting/python")
+        }
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -93,4 +106,31 @@ dependencies {
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+tasks.register("verifyThirdPartySources") {
+    group = "verification"
+    description = "Ensures required third-party source trees exist before Android build."
+
+    doLast {
+        val root = rootProject.projectDir
+        val requiredPaths = listOf(
+            "third_party/capstone/CMakeLists.txt",
+            "third_party/radare2/README.md",
+            "third_party/lief/CMakeLists.txt",
+            "third_party/ghidra/README.md",
+            "third_party/ogdf/CMakeLists.txt"
+        )
+        val missing = requiredPaths.filterNot { rel -> root.resolve(rel).exists() }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing third-party sources:\n${missing.joinToString(separator = "\n")}.\n" +
+                    "Run scripts/setup_third_party.ps1."
+            )
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("verifyThirdPartySources")
 }

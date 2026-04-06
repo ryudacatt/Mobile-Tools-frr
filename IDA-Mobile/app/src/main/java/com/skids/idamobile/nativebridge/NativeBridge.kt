@@ -7,6 +7,8 @@ object NativeBridge {
     }
 
     external fun getCoreVersion(): String
+    // Returns linked Capstone runtime version from native core.
+    external fun getCapstoneVersion(): String
     // Runs the native mmap APK parser and returns JSON with summary stats
     external fun inspectApk(fd: Int, declaredSize: Long): String
 }

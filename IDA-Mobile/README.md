@@ -1,111 +1,107 @@
 # IDA-Mobile Workbench
 
-`IDA-Mobile` is a Android reverse engineering toolkit focused on skidding APKs on Android 11+ (non-rooteddddd).
+<p align="center">
+  <img src="docs/assets/project-icon.png" alt="IDA-Mobile icon" width="150" />
+</p>
 
-The current build ships as one APK and includes:
+`IDA-Mobile` is an android reverse engineering tool that don't even work nicely trust me ...
 
-- APK structure inspection (`mmap` + JNI + C++).
-- APK debugger workspace (manifest/package/components/permissions/signing/native libs).
-- Assembly viewer for `classes.dex` (real Dalvik bytecode decoding with syntax coloring).
-- Fast in-app find/search for debugger and assembly data.
-- Website inspector with local HTTP parsing and content fingerprinting.
+## What It Does Today
 
-## Why This Project Exists
+- Native APK structure inspection through JNI + `mmap`.
+- APK debugger workspace
+  - package/manifest metadata
+  - components and permissions
+  - signing SHA-256 and native library listing
+- Dalvik assembly view for `classes.dex` with syntax coloring.
+- String extraction + cross-reference indexing.
+- Embedded Python heuristics with Chaquopy (offline runtime).
+- Hex editor workspace:
+  - address + hex + ASCII rendering
+  - patch bytes at selected offsets
+  - export patched APK copy
+  - export selected disassembly method to text
+- Website inspector (HTTP metadata + payload fingerprinting).
+- Radare2 local decompiler bridge (`aflj` + `pdc`) for `classes.dex`.
+- Termux bridge panel (detect, launch, run-command intent).
 
-Most mobile reverse-engineering shyt still depend on desktop tools, shell scripts, and mixed environments. ( gays fr) 
-This project pushes that directly onto device with a mobile
+--------------------------------------
+` NOTE THIS IS REALLY HEAVY AND LAGGY `
+--------------------------------------
+## Third-Party Source Policy
 
-## Current Feature Set
+The project vendors upstream repositories under `third_party/` and enforces presence during build via `verifyThirdPartySources`.
 
-- Reads selected APK from SAF.
-- Uses native `mmap` to parse ZIP headers and central directory.
-- Returns:
-  - File size
-  - ZIP entry count
-  - DEX file count
-  - `AndroidManifest.xml` presence
+- `capstone`
+- `radare2`
+- `lief`
+- `ghidra`
+- `ogdf`
 
-- Builds static debug context from archive metadata via `PackageManager`.
-- Extracts:
-  - Package name, version, SDK levels
-  - Debuggable flag
-  - Permissions
-  - Activities/services/receivers/providers
-  - Native `lib/*.so` entries
-  - Signing certificate SHA-256 digests
-- Includes on-device filtering (`find`) for all major sections.
-- Loads `classes.dex` from APK zip.
-- Decodes Dalvik instructions with `dexlib2`.
-- Displays methods + instruction stream in-app.
-- Includes syntax color engine:
-  - Address
-  - Mnemonic
-  - Registers
-  - Literals
-  - Comments
-- Includes method/class query filtering and method selection.
+See [third_party/README.md](third_party/README.md) and [third_party/LOCKFILE.md](third_party/LOCKFILE.md).
 
-- On-device HTTP request (OkHttp).
-- Extracts:
-  - Final normalized URL
-  - HTTP status
-  - Content type
-  - Sampled payload size
-  - HTML title
-  - Script tag count
-  - SHA-256 fingerprint of sampled payload
+## Build
 
-## Build Instructions
+Prerequisites:
 
-## Prerequisites
+- JDK 17
+- Android SDK 35
+- NDK 26+
+- CMake 3.22.1+
 
-- Android Studio (Hedgehog+ recommended).
-- Android SDK Platform 35.
-- NDK 26.x (or compatible).
-- CMake 3.22.1+.
-- JDK 17.
+Dependency setup:
 
-## Build Debug APK
-
-```bash
-./gradlew :app:assembleDebug
+```powershell
+.\scripts\setup_third_party.ps1
 ```
 
-Output APK:
+Build APK:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+```
+
+Output:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Install on Device
+## Radare2 Binary Setup (For Decompiler Panel)
+
+The decompiler panel is a **radare2 integration**, but it requires ABI-specific `r2` binaries in assets.
+
+Linux/macOS build helper:
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./scripts/build_radare2_android.sh arm64-v8a
 ```
 
-## Operational Notes
+Windows asset install helper:
 
-- Works without root.
-- All current tooling runs locally on-device.
-- Assembly decoding is intentionally bounded (method/instruction limits) to keep UI responsive on mobile hardware.
-- APK workspace artifacts are stored in app cache and can be cleared by app data reset.
+```powershell
+.\scripts\install_radare2_asset.ps1 -BinaryPath C:\path\to\r2 -Abi arm64-v8a
+```
 
-## Limitations (Current)
+Expected paths:
 
-The following are intentionally not claimed as complete yet:
+- `app/src/main/assets/tools/radare2/arm64-v8a/r2`
+- `app/src/main/assets/tools/radare2/armeabi-v7a/r2`
 
-- Full live process debugger with breakpoints/stepping on arbitrary targets.
-- Full decompiler equivalent to desktop IDA/Ghidra output.
-- Multi-dex full graph/xref explorer across all dex files.
+## Current Limits
 
-These are advanced phases and require additional hardened modules.
+- Full native Ghidra-grade decompiler inside one APK is not currently feasible in this codebase/state bc im dumb and gay
+- Full Termux embedding as an internal terminal emulator is not feasible due Android app sandboxing and packaging boundaries so either we go root or don't fk with it for now ... 
 
-## Future Goals
+## Roadmap
 
-- Multi-dex decode and unified cross-reference index.
-- Native `lib/*.so` disassembly path with Capstone integration.
-- CFG graph rendering with touch-first navigation.
-- String/xref browser with reverse navigation.
-- Plugin SDK (Python/Chaquopy) with safe API surface.
-- Optional root mode module for process attach/memory dump, without breaking non-root flows.
-- Export workflows for report bundles and reproducible analysis snapshots.
+- Multi-dex unified xref index (all DEX files, not only `classes.dex`)
+- Native `lib/*.so` disassembly pipeline with Capstone-backed symbol-aware analysis
+- CFG generation + touch-first OpenGL graph rendering
+- APK binary patch profiles and reproducible patch manifests
+- Python plugin API surface with signed plugin loading
+- supersu:
+  - process attach
+  - memory dump
+  - no regressions in non-root flows 
+  * Imma do these later on in the coming months *
