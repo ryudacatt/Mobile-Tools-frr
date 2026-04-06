@@ -1,11 +1,15 @@
 # IDA-Mobile
 
-Phase 1 foundation for an Android reverse engineering suite:
+Current scope (single APK, non-root):
 
-- Kotlin + Jetpack Compose app (`minSdk 30`, Android 11+ non-root baseline).
-- C++ native core built with NDK and CMake.
-- JNI bridge verified by calling native code from Compose UI.
-- Native folders prepared for later phases (`loader`, `memory`, `disassembler`, `analysis`, `cfg`).
+- `APK Inspector`:
+  - Android SAF picker.
+  - Native `mmap` parsing from file descriptor.
+  - ZIP central directory scan for entry count, dex count, and manifest presence.
+- `Website Inspector`:
+  - Direct on-device HTTP request (OkHttp, no backend).
+  - Extracts status, content-type, title, script tag count, and SHA-256 sample hash.
+- Kotlin + Jetpack Compose UI + C++ core via JNI (`minSdk 30`).
 
 ## Build prerequisites
 
@@ -21,5 +25,4 @@ Phase 1 foundation for an Android reverse engineering suite:
 ./gradlew :app:assembleDebug
 ```
 
-If this command succeeds, JNI and native linking are configured correctly.
-
+If this command succeeds, Kotlin + JNI + native core wiring is healthy.

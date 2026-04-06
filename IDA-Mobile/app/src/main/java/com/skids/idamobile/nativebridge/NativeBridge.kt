@@ -1,4 +1,4 @@
-package com.geeks.idamobile.nativebridge
+package com.skids.idamobile.nativebridge
 
 object NativeBridge {
     init {
@@ -7,5 +7,5 @@ object NativeBridge {
     }
 
     external fun getCoreVersion(): String
+    external fun inspectApk(fd: Int, declaredSize: Long): String
 }
-

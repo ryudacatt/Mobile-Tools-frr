@@ -1,4 +1,4 @@
-package com.geeks.idamobile.hexviewer
+package com.skids.idamobile.hexviewer
 
 data class HexRow(
     val offset: Long,

@@ -1,4 +1,4 @@
-package com.geeks.idamobile.cfg
+package com.skids.idamobile.cfg
 
 data class CfgNode(
     val id: Long,

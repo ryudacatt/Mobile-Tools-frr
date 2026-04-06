@@ -7,6 +7,7 @@ add_library(
     core/core_version.cpp
     jni/jni_bridge.cpp
     loader/file_loader.cpp
+    loader/apk_inspector.cpp
     memory/memory_map.cpp
     disassembler/disassembler_stub.cpp
     analysis/analysis_stub.cpp
@@ -30,4 +31,3 @@ target_compile_options(
 
 find_library(log-lib log)
 target_link_libraries(ida_mobile_core PRIVATE ${log-lib})
-

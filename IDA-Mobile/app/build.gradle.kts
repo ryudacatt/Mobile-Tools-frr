@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.geeks.idamobile"
+    namespace = "com.skids.idamobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.geeks.idamobile"
+        applicationId = "com.skids.idamobile"
         minSdk = 30
         targetSdk = 35
         versionCode = 1
@@ -77,8 +77,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))

@@ -1,4 +1,4 @@
-package com.geeks.idamobile.functions
+package com.skids.idamobile.functions
 
 data class FunctionSymbol(
     val startAddress: Long,

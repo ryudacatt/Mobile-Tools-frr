@@ -1,4 +1,4 @@
-package com.geeks.idamobile.disassembly
+package com.skids.idamobile.disassembly
 
 data class InstructionLine(
     val address: Long,

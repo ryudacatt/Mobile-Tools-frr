@@ -1,11 +1,11 @@
-package com.geeks.idamobile
+package com.skids.idamobile
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import com.geeks.idamobile.ui.IdaMobileApp
-import com.geeks.idamobile.viewmodels.MainViewModel
+import com.skids.idamobile.ui.IdaMobileApp
+import com.skids.idamobile.viewmodels.MainViewModel
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -15,9 +15,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             IdaMobileApp(
                 uiState = viewModel.uiState,
-                onRefreshNativeBridge = viewModel::refreshNativeBridge
+                onRefreshNativeBridge = viewModel::refreshNativeBridge,
+                onSelectTool = viewModel::selectTool,
+                onPickApk = viewModel::inspectApk,
+                onWebsiteUrlChanged = viewModel::updateWebsiteUrl,
+                onInspectWebsite = viewModel::inspectWebsite
             )
         }
     }
 }
-
